@@ -14,14 +14,20 @@ export const loginWithGoogle = async (): Promise<UserProfile> => {
   }
 };
 
-// ২. Email/Password Registration with Email Verification
+// ২. Email/Password Registration (Facebook System Validation Included)
 export const registerWithEmail = async (email: string, password: string, name: string): Promise<UserProfile> => {
+  // ফেসবুক স্টাইল নেম ভ্যালিডেশন
+  const forbiddenNames = ["admin", "administrator", "facebook", "trick", "a4if", "official"];
+  if (forbiddenNames.some(n => name.toLowerCase().includes(n))) {
+    throw new Error('আপনার নামটিতে অগ্রহণযোগ্য শব্দ আছে। দয়া করে অন্য নাম ব্যবহার করুন।');
+  }
+
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     const user = result.user;
     
     await updateProfile(user, { displayName: name });
-    await sendEmailVerification(user); // মেইলে ভেরিফিকেশন লিংক পাঠানো
+    await sendEmailVerification(user); // ইমেইল ভেরিফিকেশন
 
     return await saveUserToDb(user, name, null);
   } catch (error: any) {
@@ -48,10 +54,7 @@ export const resetPassword = async (email: string): Promise<void> => {
   try {
     await sendPasswordResetEmail(auth, email);
   } catch (error: any) {
-    if (error.code === 'auth/user-not-found') {
-      throw new Error('এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।');
-    }
-    throw new Error('পাসওয়ার্ড রিসেট ইমেইল পাঠাতে সমস্যা হয়েছে। ইমেইলটি সঠিক কিনা চেক করুন।');
+    throw new Error('পাসওয়ার্ড রিসেট ইমেইল পাঠাতে সমস্যা হয়েছে।');
   }
 };
 
