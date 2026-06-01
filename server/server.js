@@ -7,14 +7,30 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(cors());
 
-// আপলোডের জন্য ফোল্ডার তৈরি রাখা
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
+// ১. CORS এরর চিরতরে দূর করার জন্য মজবুত কনফিগারেশন
+app.use(cors({
+    origin: '*', // সব ওয়েবসাইট থেকে রিকোয়েস্ট অ্যালাউ করবে
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
+// ২. 'uploads' ফোল্ডারটি রেন্ডার সার্ভারে না থাকলে স্বয়ংক্রিয়ভাবে তৈরি করার লজিক
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const upload = multer({ dest: 'uploads/' });
+// মাল্টার কনফিগারেশনে সঠিক ডিরেক্টরি পাথ সেট করা
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
 
 // সিকিউর ভেরিয়েবল
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -22,29 +38,41 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 const bot = new TelegramBot(token, { polling: false });
 
-// রুট পেজে একটি মেসেজ যেন "Cannot GET" না দেখায়
+// রুট রাউট
 app.get('/', (req, res) => {
-    res.send('TRICK A4IF Backend is Running Successfully!');
+    res.send('TRICK A4IF Backend is Running Successfully with Upload Directory fixed!');
 });
 
 // ফাইল আপলোড এন্ডপয়েন্ট
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
-        if (!file) return res.status(400).json({ error: 'No file uploaded' });
+        if (!file) {
+            console.error('No file received in request');
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        console.log(`File received successfully: ${file.path}`);
 
         // টেলিগ্রামে পাঠানো
         const photo = await bot.sendPhoto(CHAT_ID, fs.createReadStream(file.path));
         
-        // ফাইলটি ডিলিট করা
-        fs.unlinkSync(file.path);
+        // ফাইলটি পাঠানো শেষে ডিলিট করা
+        if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
 
         res.json({ 
             success: true, 
             url: photo.photo[photo.photo.length - 1].file_id 
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server Error' });
+        console.error('Telegram or Server Error:', error);
+        // যদি এরর হয় তাও লোকাল ফাইল ডিলিট করার চেষ্টা করা
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Server Error', details: error.message });
     }
 });
 
