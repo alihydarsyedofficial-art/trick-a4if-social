@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-// পাথগুলো ঠিক করা হয়েছে (দুটি ডট ../../ দেওয়া হয়েছে)
-import { auth, db } from '../../firebase/firebase'; 
+// ফায়ারবেস পাথ ঠিক করা হয়েছে (config ফোল্ডার অনুযায়ী)
+import { auth, db } from '../../config/firebase'; 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { uploadFileToBackend } from '../../services/upload.service';
 
@@ -15,7 +15,6 @@ const CreatePostBox = () => {
         if (e.target.files && e.target.files[0]) {
             const selectedFile = e.target.files[0];
             setFile(selectedFile);
-            // প্রিভিউ দেখানোর জন্য লোকাল URL তৈরি করা
             setPreview(URL.createObjectURL(selectedFile));
         }
     };
@@ -24,7 +23,6 @@ const CreatePostBox = () => {
     const handlePostSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // যদি টেক্সট বা ছবি কিছুই না থাকে, তবে পোস্ট হবে না
         if (!content.trim() && !file) return; 
 
         const user = auth.currentUser;
@@ -37,24 +35,24 @@ const CreatePostBox = () => {
         let fileId = "";
 
         try {
-            // ১. যদি ছবি থাকে, তবে আমাদের Render ব্যাকএন্ডের মাধ্যমে টেলিগ্রামে পাঠানো
+            // ১. ছবি থাকলে Render ব্যাকএন্ডের মাধ্যমে আপলোড
             if (file) {
                 fileId = await uploadFileToBackend(file);
             }
 
-            // ২. ফায়ারস্টোর ডাটাবেসে পোস্টের তথ্য সেভ করা
+            // ২. ফায়ারস্টোর ডাটাবেসে পোস্ট সেভ করা
             await addDoc(collection(db, "posts"), {
                 userId: user.uid,
                 userName: user.displayName || "Unknown User",
                 userPhoto: user.photoURL || "",
                 content: content,
-                imageFileId: fileId, // সরাসরি লিংকের বদলে টেলিগ্রামের file_id সেভ হচ্ছে
+                imageFileId: fileId,
                 createdAt: serverTimestamp(),
                 likes: [],
                 commentsCount: 0
             });
 
-            // ৩. পোস্ট সফল হলে ফর্ম রিসেট করা
+            // ৩. পোস্ট সফল হলে ফর্ম রিসেট
             setContent('');
             setFile(null);
             setPreview(null);
@@ -68,7 +66,7 @@ const CreatePostBox = () => {
         }
     };
 
-    // প্রিভিউ ডিলিট করার ফাংশন
+    // প্রিভিউ রিমুভ ফাংশন
     const removePreview = () => {
         setFile(null);
         setPreview(null);
@@ -89,7 +87,7 @@ const CreatePostBox = () => {
                     disabled={isUploading}
                 />
 
-                {/* ছবি প্রিভিউ সেকশন */}
+                {/* ছবি প্রিভিউ */}
                 {preview && (
                     <div className="relative mb-3">
                         <img 
@@ -108,7 +106,7 @@ const CreatePostBox = () => {
                     </div>
                 )}
 
-                {/* কন্ট্রোল সেকশন (ফাইল আপলোড এবং সাবমিট বাটন) */}
+                {/* সাবমিট ও ফাইল আপলোড সেকশন */}
                 <div className="flex items-center justify-between mt-2">
                     <label className="cursor-pointer text-gray-600 hover:text-blue-600 font-medium flex items-center gap-2 hover:bg-blue-50 px-3 py-2 rounded-lg transition">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
