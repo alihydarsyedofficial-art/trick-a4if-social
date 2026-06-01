@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchAllPosts, createNewPost } from '../services/post.service';
-import { uploadMediaToCloudinary } from '../services/upload.service';
+// পুরনো Cloudinary রিমুভ করে নতুন ব্যাকএন্ড আপলোড সার্ভিস ইমপোর্ট করা হলো
+import { uploadFileToBackend } from '../services/upload.service';
 import { useAuth } from './useAuth';
 import type { CreatePostData } from '../types/post';
 
@@ -23,9 +24,12 @@ export const useCreatePost = () => {
       let mediaType: 'image' | 'video' | null = null;
 
       if (data.mediaFile) {
-        const uploadResult = await uploadMediaToCloudinary(data.mediaFile);
-        mediaUrl = uploadResult.url;
-        mediaType = uploadResult.type;
+        // নতুন Render ব্যাকএন্ডে ফাইল পাঠানো হচ্ছে
+        const fileId = await uploadFileToBackend(data.mediaFile);
+        mediaUrl = fileId; // ডাটাবেসে এখন টেলিগ্রামের file_id সেভ হবে
+        
+        // ফাইলটি ছবি নাকি ভিডিও তা ফাইলের টাইপ থেকে বের করা হচ্ছে
+        mediaType = data.mediaFile.type.startsWith('video/') ? 'video' : 'image';
       }
 
       const postData = {
