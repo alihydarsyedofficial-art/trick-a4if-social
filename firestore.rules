@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users Rules
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    
+    // Posts Rules
+    match /posts/{postId} {
+      allow read: if request.auth != null; // যে কেউ পড়তে পারবে
+      allow create: if request.auth != null; // যে কেউ পোস্ট করতে পারবে
+      // শুধুমাত্র পোস্টের মালিক এডিট/ডিলিট করতে পারবে
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+  }
+}

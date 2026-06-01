@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased overflow-y-scroll bg-facebook-light dark:bg-facebook-dark;
+  }
+}
