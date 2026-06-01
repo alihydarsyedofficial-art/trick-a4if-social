@@ -1,13 +1,30 @@
 import React from 'react';
 import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, UserCircle, Globe } from 'lucide-react';
-import type { Post } from '../../types/post';
 import { formatDistanceToNow } from 'date-fns';
 
+// type এ any ব্যবহার করা হলো যাতে ফায়ারবেসের ডাটার সাথে কোনো এরর না আসে
 interface Props {
-  post: Post;
+  post: any;
 }
 
 const PostCard: React.FC<Props> = ({ post }) => {
+  // ১. ফায়ারবেস টাইমস্ট্যাম্পকে সঠিক Date-এ কনভার্ট করা
+  let formattedDate = 'Just now';
+  try {
+    if (post.createdAt) {
+      const dateObj = typeof post.createdAt.toDate === 'function' 
+        ? post.createdAt.toDate() 
+        : new Date(post.createdAt);
+      formattedDate = formatDistanceToNow(dateObj, { addSuffix: true });
+    }
+  } catch (e) {
+    console.error('Date parsing error', e);
+  }
+
+  // ২. টেলিগ্রামের file_id কে আপনার ব্যাকএন্ড লিংকে রূপান্তর করা
+  const fileId = post.imageFileId || post.mediaUrl;
+  const imageUrl = fileId ? `https://trick-a4if-social.onrender.com/image/${fileId}` : null;
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-4 pb-2">
       
@@ -15,17 +32,17 @@ const PostCard: React.FC<Props> = ({ post }) => {
       <div className="flex justify-between items-center p-4">
         <div className="flex items-center gap-2">
           {post.userPhoto ? (
-            <img src={post.userPhoto} alt="Author" className="w-10 h-10 rounded-full border border-gray-200" />
+            <img src={post.userPhoto} alt="Author" className="w-10 h-10 rounded-full border border-gray-200 object-cover" />
           ) : (
             <UserCircle size={40} className="text-gray-400" />
           )}
           <div>
             <h3 className="font-semibold text-[15px] text-[#050505] leading-tight cursor-pointer hover:underline">
-              {post.userName}
+              {post.userName || 'Unknown User'}
             </h3>
             <div className="flex items-center gap-1 text-[13px] text-[#65676B]">
               <span className="hover:underline cursor-pointer">
-                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                {formattedDate}
               </span>
               <span>·</span>
               <Globe size={12} />
@@ -44,27 +61,23 @@ const PostCard: React.FC<Props> = ({ post }) => {
         </div>
       )}
 
-      {/* Post Media */}
-      {post.mediaUrl && (
-        <div className="w-full bg-[#f0f2f5]">
-          {post.mediaType === 'video' ? (
-            <video src={post.mediaUrl} controls className="w-full max-h-[600px] object-contain" />
-          ) : (
-            <img src={post.mediaUrl} alt="Post Media" className="w-full max-h-[600px] object-contain" />
-          )}
+      {/* Post Media (ছবি শো করার ম্যাজিক) */}
+      {imageUrl && (
+        <div className="w-full bg-[#f0f2f5] flex justify-center">
+          <img src={imageUrl} alt="Post Media" className="w-full max-h-[600px] object-contain" />
         </div>
       )}
 
       {/* Post Stats */}
       <div className="px-4 py-2.5 flex justify-between items-center text-[#65676B] text-[15px] border-b border-gray-200 mx-4">
         <div className="flex items-center gap-1 cursor-pointer hover:underline">
-          <div className="bg-facebook-blue rounded-full p-1 border-2 border-white">
+          <div className="bg-blue-600 rounded-full p-1 border-2 border-white">
             <ThumbsUp size={12} className="text-white" />
           </div>
-          <span>{post.likesCount}</span>
+          <span>{post.likesCount || post.likes?.length || 0}</span>
         </div>
         <div className="flex gap-3 cursor-pointer">
-          <span className="hover:underline">{post.commentsCount} comments</span>
+          <span className="hover:underline">{post.commentsCount || 0} comments</span>
         </div>
       </div>
 

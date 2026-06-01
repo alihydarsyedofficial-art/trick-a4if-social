@@ -10,12 +10,12 @@ const app = express();
 
 // ১. CORS এরর চিরতরে দূর করার জন্য মজবুত কনফিগারেশন
 app.use(cors({
-    origin: '*', // সব ওয়েবসাইট থেকে রিকোয়েস্ট অ্যালাউ করবে
+    origin: '*', // সব ওয়েবসাইট থেকে রিকোয়েস্ট অ্যালাউ করবে
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
-// ২. 'uploads' ফোল্ডারটি রেন্ডার সার্ভারে না থাকলে স্বয়ংক্রিয়ভাবে তৈরি করার লজিক
+// ২. 'uploads' ফোল্ডারটি রেন্ডার সার্ভারে না থাকলে স্বয়ংক্রিয়ভাবে তৈরি করার লজিক
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -68,11 +68,23 @@ app.post('/upload', upload.single('file'), async (req, res) => {
         });
     } catch (error) {
         console.error('Telegram or Server Error:', error);
-        // যদি এরর হয় তাও লোকাল ফাইল ডিলিট করার চেষ্টা করা
+        // যদি এরর হয় তাও লোকাল ফাইল ডিলিট করার চেষ্টা করা
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }
         res.status(500).json({ error: 'Server Error', details: error.message });
+    }
+});
+
+// ৩. টেলিগ্রাম থেকে ছবি এনে ফ্রন্টএন্ডে দেখানোর ম্যাজিক এন্ডপয়েন্ট (নতুন যোগ করা হয়েছে)
+app.get('/image/:fileId', async (req, res) => {
+    try {
+        const fileLink = await bot.getFileLink(req.params.fileId);
+        // সরাসরি টেলিগ্রামের ছবির লিংকে রিডাইরেক্ট করে দেবে
+        res.redirect(fileLink);
+    } catch (error) {
+        console.error('Error fetching image:', error);
+        res.status(404).send('Image not found');
     }
 });
 
