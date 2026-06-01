@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../hooks/redux';
-import { loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword } from '../../services/auth.service';
+// loginWithGoogle বাদ দেওয়া হয়েছে
+import { loginWithEmail, registerWithEmail, resetPassword } from '../../services/auth.service';
 import { setUser, setError, setLoading } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { X, Eye, EyeOff } from 'lucide-react';
@@ -15,7 +16,7 @@ const Login: React.FC = () => {
   
   // Modal States
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [isForgotOpen, setIsForgotOpen] = useState(false); // For Forgot Password
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
 
   // Form States (Login)
   const [email, setEmail] = useState('');
@@ -41,19 +42,6 @@ const Login: React.FC = () => {
   const [forgotErr, setForgotErr] = useState('');
 
   // --- Functions ---
-  const handleGoogleLogin = async () => {
-    try {
-      setLocalError('');
-      dispatch(setLoading(true));
-      const userProfile = await loginWithGoogle();
-      dispatch(setUser(userProfile));
-      navigate('/');
-    } catch (err: any) {
-      setLocalError('Google লগইন ব্যর্থ হয়েছে।');
-      dispatch(setError(err.message));
-    }
-  };
-
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!email || !password) return setLocalError('ইমেইল এবং পাসওয়ার্ড দিন');
@@ -96,12 +84,15 @@ const Login: React.FC = () => {
       return setLocalError('দুঃখিত, TRICK A4IF-এ অ্যাকাউন্ট তৈরি করতে আপনার বয়স কমপক্ষে ৬ বছর হতে হবে।');
     }
     
+    // TS Error Fix: জেন্ডার ভেরিয়েবলটি কনসোলে লগ করা হলো যাতে অব্যবহৃত না থাকে
+    console.log("Selected Gender:", gender);
+
     const fullName = `${firstName} ${surname}`;
     try {
       dispatch(setLoading(true));
       const userProfile = await registerWithEmail(regEmail, regPassword, fullName);
       
-      setSuccessMsg('অ্যাকাউন্ট তৈরি সফল হয়েছে! আপনার ইমেইলে একটি ভেরিফিকেশন লিংক পাঠানো হয়েছে। দয়া করে ইনবক্স চেক করুন।');
+      setSuccessMsg('অ্যাকাউন্ট তৈরি সফল হয়েছে! আপনার ইমেইলে একটি ভেরিফিকেশন লিংক পাঠানো হয়েছে। දয়া করে ইনবক্স চেক করুন।');
       
       setTimeout(() => {
         dispatch(setUser(userProfile));
