@@ -3,7 +3,9 @@ import { MoreHorizontal, MessageSquare, Share2, UserCircle, Globe, ThumbsUp, Tra
 import { formatDistanceToNow } from 'date-fns';  
 import { auth, db } from '../../config/firebase';   
 import CommentSection from './CommentSection';
-import { doc, updateDoc, deleteField, deleteDoc } from 'firebase/firestore';  
+import { doc, updateDoc, deleteField, deleteDoc } from 'firebase/firestore'; 
+// ১. Link ইমপোর্ট করা হলো রাউটিংয়ের জন্য 
+import { Link } from 'react-router-dom';
   
 interface Props {  
   post: any;  
@@ -23,8 +25,6 @@ const PostCard: React.FC<Props> = ({ post }) => {
   const currentUser = auth.currentUser;  
   
   const [showComments, setShowComments] = useState(false);
-  
-  // ১. এডিট করার জন্য নতুন State
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content || '');
     
@@ -68,14 +68,13 @@ const PostCard: React.FC<Props> = ({ post }) => {
     }
   };
 
-  // ২. পোস্ট সেভ করার ফাংশন
   const handleSaveEdit = async () => {
     if (!editContent.trim()) return;
     try {
       await updateDoc(doc(db, 'posts', post.id), {
         content: editContent
       });
-      setIsEditing(false); // সেভ হওয়ার পর এডিট মোড বন্ধ হয়ে যাবে
+      setIsEditing(false); 
     } catch (error) {
       console.error("Error updating post:", error);
       alert("পোস্ট আপডেট করতে সমস্যা হয়েছে।");
@@ -123,12 +122,15 @@ const PostCard: React.FC<Props> = ({ post }) => {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert("লিংকটি সফলভাবে কপি হয়েছে! এখন আপনি এটি যেকোনো জায়গায় পেস্ট করে পাঠাতে পারবেন।");
+        alert("লিংকটি সফলভাবে কপি হয়েছে!");
       }
     } catch (error) {
       console.error("Error sharing:", error);
     }
   };
+
+  // ইউজারের প্রোফাইল লিংক তৈরি করা
+  const profileLink = `/profile/${post.userId || post.uid}`;
   
   return (  
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-4 pb-2">  
@@ -136,15 +138,21 @@ const PostCard: React.FC<Props> = ({ post }) => {
       {/* Post Header */}  
       <div className="flex justify-between items-center p-4">  
         <div className="flex items-center gap-2">  
-          {post.userPhoto ? (  
-            <img src={post.userPhoto} alt="Author" className="w-10 h-10 rounded-full border border-gray-200 object-cover" />  
-          ) : (  
-            <UserCircle size={40} className="text-gray-400" />  
-          )}  
+          {/* ২. ছবিতে প্রোফাইলের লিংক বসানো হলো */}
+          <Link to={profileLink}>
+            {post.userPhoto ? (  
+              <img src={post.userPhoto} alt="Author" className="w-10 h-10 rounded-full border border-gray-200 object-cover hover:opacity-80 transition" />  
+            ) : (  
+              <UserCircle size={40} className="text-gray-400 hover:text-gray-500 transition" />  
+            )}  
+          </Link>
           <div>  
-            <h3 className="font-semibold text-[15px] text-[#050505] leading-tight cursor-pointer hover:underline">  
-              {post.userName || 'Unknown User'}  
-            </h3>  
+            {/* ৩. নামের মধ্যে প্রোফাইলের লিংক বসানো হলো */}
+            <Link to={profileLink}>
+              <h3 className="font-semibold text-[15px] text-[#050505] leading-tight cursor-pointer hover:underline">  
+                {post.userName || 'Unknown User'}  
+              </h3>  
+            </Link>
             <div className="flex items-center gap-1 text-[13px] text-[#65676B]">  
               <span className="hover:underline cursor-pointer">{formattedDate}</span>  
               <span>·</span>  
@@ -156,7 +164,6 @@ const PostCard: React.FC<Props> = ({ post }) => {
         <div className="flex items-center gap-2">
           {currentUser && (currentUser.uid === post.userId || currentUser.uid === post.uid) && (
             <>
-              {/* ৩. এডিট বাটন */}
               <button 
                 onClick={() => setIsEditing(!isEditing)}
                 className="text-blue-500 hover:bg-blue-50 p-2 rounded-full transition-colors"
@@ -180,7 +187,7 @@ const PostCard: React.FC<Props> = ({ post }) => {
         </div>
       </div>  
   
-      {/* Post Content (এডিট মোড এবং ভিউ মোড) */}  
+      {/* Post Content */}  
       <div className="px-4 pb-3">
         {isEditing ? (
           <div className="flex flex-col gap-2">

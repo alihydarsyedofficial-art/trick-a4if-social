@@ -11,7 +11,6 @@ import Login from './pages/auth/Login';
 import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/home/Home';
-// ১. প্রোফাইল পেজটি ইমপোর্ট করা হলো
 import Profile from './pages/Profile'; 
 
 const App: React.FC = () => {
@@ -51,8 +50,10 @@ const App: React.FC = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
-              {/* ২. প্রোফাইলের জন্য নতুন রাউট যোগ করা হলো */}
+              {/* নিজের প্রোফাইল দেখার জন্য */}
               <Route path="/profile" element={<Profile />} />
+              {/* অন্যের প্রোফাইল দেখার ডায়নামিক রাউট */}
+              <Route path="/profile/:id" element={<Profile />} />
             </Route>
           </Route>
         </Routes>
