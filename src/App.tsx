@@ -50,6 +50,10 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:id" element={<Profile />} />
+            {/* ফিউচার রাউটস (এরর এড়াতে) */}
+            <Route path="/video" element={<Home />} /> 
+            <Route path="/marketplace" element={<Home />} />
+            <Route path="/gaming" element={<Home />} />
           </Route>
         </Route>
         {/* Fallback */}
