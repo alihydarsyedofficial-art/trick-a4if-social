@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      },
       manifest: {
         name: 'TRICK A4IF SOCIAL',
         short_name: 'Trick A4IF',
@@ -35,9 +38,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // টাইপস্ক্রিপ্ট বিল্ড এরর এড়াতে এটি যোগ করুন
   build: {
-    sourcemap: false,
+    // বিল্ড এরর এড়াতে এটি অত্যন্ত কার্যকর
     rollupOptions: {
       onwarn(warning, warn) {
         if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
