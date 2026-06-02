@@ -4,6 +4,22 @@
 
 @layer base {
   body {
-    @apply antialiased overflow-y-scroll bg-facebook-light dark:bg-facebook-dark;
+    background-color: #f0f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #050505;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@layer components {
+  /* ফেসবুক স্টাইল কার্ড */
+  .fb-card {
+    @apply bg-white rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.2)] border border-facebook-border;
+  }
+  
+  /* ফেসবুক স্টাইল বাটন */
+  .fb-btn {
+    @apply flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[8px] font-semibold text-facebook-secondary hover:bg-facebook-hover transition-all duration-200 cursor-pointer;
   }
 }
