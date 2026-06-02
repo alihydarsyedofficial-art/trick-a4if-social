@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../config/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const Home = () => {
     const auth = getAuth();
@@ -25,7 +24,7 @@ const Home = () => {
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Fetch Posts
+    // Fetch Posts from Firestore
     useEffect(() => {
         const q = query(collection(db, 'posts'), orderBy('timestamp', 'desc'));
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -41,11 +40,31 @@ const Home = () => {
             const file = e.target.files[0];
             setImageFile(file);
             setImagePreview(URL.createObjectURL(file));
-            setIsModalOpen(true); // ওপেন মডেল
+            setIsModalOpen(true);
         }
     };
 
-    // Handle Post Submit (Text + Image)
+    // Upload to Cloudinary (100% Free, No CORS issue)
+    const uploadToCloudinary = async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!res.ok) {
+            throw new Error("Cloudinary upload failed");
+        }
+
+        const data = await res.json();
+        return data.secure_url;
+    };
+
+    // Handle Post Submit
     const handlePostSubmit = async () => {
         if (!postText.trim() && !imageFile) return;
         setIsUploading(true);
@@ -53,34 +72,31 @@ const Home = () => {
         try {
             let imageUrl = "";
 
-            // যদি ছবি সিলেক্ট করা থাকে, তবে Firebase Storage এ আপলোড হবে
+            // Upload image to Cloudinary if selected
             if (imageFile) {
-                const storage = getStorage();
-                const storageRef = ref(storage, `posts/${Date.now()}_${imageFile.name}`);
-                const snapshot = await uploadBytes(storageRef, imageFile);
-                imageUrl = await getDownloadURL(snapshot.ref);
+                imageUrl = await uploadToCloudinary(imageFile);
             }
 
-            // Firestore এ পোস্ট সেভ
+            // Save post data to Firebase Firestore
             await addDoc(collection(db, 'posts'), {
                 authorName: userName,
                 authorProfilePic: userProfilePic,
                 content: postText,
-                imageUrl: imageUrl, // ছবির লিংক
+                imageUrl: imageUrl, 
                 timestamp: new Date().toLocaleString(),
                 likesCount: 0,
                 commentsCount: 0,
                 createdAt: serverTimestamp()
             });
 
-            // ফর্ম রিসেট
+            // Reset Form
             setPostText("");
             setImageFile(null);
             setImagePreview(null);
             setIsModalOpen(false);
         } catch (error) {
             console.error("Error adding post: ", error);
-            alert("Error posting! Please make sure Firebase Storage is enabled in your Firebase Console.");
+            alert("Error posting! Please try again.");
         } finally {
             setIsUploading(false);
         }
@@ -88,7 +104,7 @@ const Home = () => {
 
     return (
         <div className="fb-container">
-            {/* Left Sidebar (Shortened for preview) */}
+            {/* Left Sidebar */}
             <div className="left-sidebar">
                 <div className="menu-item"><img src={userProfilePic} alt={userName} /><span>{userName}</span></div>
                 <div className="menu-item"><i className="fa-solid fa-user-group" style={{color: '#1b74e4'}}></i><span>Friends</span></div>
@@ -109,7 +125,6 @@ const Home = () => {
                             <i className="fa-solid fa-video" style={{color: '#f3425f'}}></i> Live video
                         </div>
                         
-                        {/* Photo/Video Button - Now working! */}
                         <div className="action-btn-cp" onClick={() => fileInputRef.current?.click()}>
                             <i className="fa-solid fa-images" style={{color: '#45bd62'}}></i> Photo/video
                             <input 
@@ -142,10 +157,9 @@ const Home = () => {
                             
                             <div className="post-content">{post.content}</div>
                             
-                            {/* Render uploaded image if exists */}
                             {post.imageUrl && (
                                 <div className="post-image">
-                                    <img src={post.imageUrl} alt="Post Attachment" />
+                                    <img src={post.imageUrl} alt="Post Attachment" style={{ width: '100%', maxHeight: '700px', objectFit: 'contain', background: '#000' }} />
                                 </div>
                             )}
                             
@@ -173,7 +187,7 @@ const Home = () => {
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>Create post</h3>
-                            <div className="close-modal" onClick={() => setIsModalOpen(false)}><i className="fa-solid fa-xmark"></i></div>
+                            <div className="close-modal" onClick={() => { setIsModalOpen(false); setImageFile(null); setImagePreview(null); }}><i className="fa-solid fa-xmark"></i></div>
                         </div>
                         <div className="modal-body">
                             <div className="modal-user">
@@ -187,13 +201,12 @@ const Home = () => {
                                 onChange={(e) => setPostText(e.target.value)}
                             ></textarea>
 
-                            {/* Image Preview inside Modal */}
                             {imagePreview && (
                                 <div style={{ position: 'relative', marginBottom: '16px' }}>
                                     <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px', background: '#000' }} />
                                     <button 
                                         onClick={() => { setImageFile(null); setImagePreview(null); }} 
-                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'white', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
+                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
                                     >
                                         ✕
                                     </button>
