@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './config/firebase';
@@ -29,11 +29,13 @@ const App: React.FC = () => {
             dispatch(clearUser());
           }
         } catch (error) {
+          console.error("Auth error:", error);
           dispatch(clearUser());
         }
       } else {
         dispatch(clearUser());
       }
+      dispatch(setLoading(false));
     });
     return () => unsubscribe();
   }, [dispatch]);
@@ -42,6 +44,7 @@ const App: React.FC = () => {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
@@ -49,6 +52,8 @@ const App: React.FC = () => {
             <Route path="/profile/:id" element={<Profile />} />
           </Route>
         </Route>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
