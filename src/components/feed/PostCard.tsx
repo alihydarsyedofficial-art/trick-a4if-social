@@ -1,5 +1,5 @@
 import React, { useState } from 'react';  
-import { MoreHorizontal, MessageSquare, Share2, UserCircle, Globe, ThumbsUp, Trash2 } from 'lucide-react';  
+import { MoreHorizontal, MessageSquare, Share2, UserCircle, Globe, ThumbsUp, Trash2, Edit2 } from 'lucide-react';  
 import { formatDistanceToNow } from 'date-fns';  
 import { auth, db } from '../../config/firebase';   
 import CommentSection from './CommentSection';
@@ -23,6 +23,10 @@ const PostCard: React.FC<Props> = ({ post }) => {
   const currentUser = auth.currentUser;  
   
   const [showComments, setShowComments] = useState(false);
+  
+  // ১. এডিট করার জন্য নতুন State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content || '');
     
   const initialReactions: Record<string, string> = post.reactions || {};  
   if (post.likes && Array.isArray(post.likes)) {  
@@ -60,7 +64,21 @@ const PostCard: React.FC<Props> = ({ post }) => {
       await deleteDoc(doc(db, 'posts', post.id));
     } catch (error) {
       console.error("Error deleting post:", error);
-      alert("পোস্ট ডিলিট করতে সমস্যা হয়েছে!");
+      alert("পোস্ট ডিলিট করতে সমস্যা হয়েছে!");
+    }
+  };
+
+  // ২. পোস্ট সেভ করার ফাংশন
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) return;
+    try {
+      await updateDoc(doc(db, 'posts', post.id), {
+        content: editContent
+      });
+      setIsEditing(false); // সেভ হওয়ার পর এডিট মোড বন্ধ হয়ে যাবে
+    } catch (error) {
+      console.error("Error updating post:", error);
+      alert("পোস্ট আপডেট করতে সমস্যা হয়েছে।");
     }
   };
   
@@ -93,20 +111,17 @@ const PostCard: React.FC<Props> = ({ post }) => {
     }  
   };  
 
-  // ৫. শেয়ার করার চমৎকার ফাংশন (Phase 10)
   const handleShare = async () => {
     try {
       const shareData = {
         title: `Post by ${post.userName || 'Someone'}`,
         text: post.content ? post.content.substring(0, 60) + '...' : 'Check out this awesome post!',
-        url: window.location.href, // লিংক হিসেবে আপনার ওয়েবসাইটের কারেন্ট ইউআরএল যাবে
+        url: window.location.href, 
       };
 
-      // যদি ইউজারের ব্রাউজার বা মোবাইল শেয়ার সাপোর্ট করে (যেমন: Chrome, Safari, Android)
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        // পিসি বা সাপোর্ট না করলে সরাসরি লিংক কপি করে দেবে
         await navigator.clipboard.writeText(window.location.href);
         alert("লিংকটি সফলভাবে কপি হয়েছে! এখন আপনি এটি যেকোনো জায়গায় পেস্ট করে পাঠাতে পারবেন।");
       }
@@ -140,13 +155,24 @@ const PostCard: React.FC<Props> = ({ post }) => {
 
         <div className="flex items-center gap-2">
           {currentUser && (currentUser.uid === post.userId || currentUser.uid === post.uid) && (
-            <button 
-              onClick={handleDeletePost}
-              className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
-              title="Delete Post"
-            >
-              <Trash2 size={18} />
-            </button>
+            <>
+              {/* ৩. এডিট বাটন */}
+              <button 
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-blue-500 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                title="Edit Post"
+              >
+                <Edit2 size={18} />
+              </button>
+              
+              <button 
+                onClick={handleDeletePost}
+                className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+                title="Delete Post"
+              >
+                <Trash2 size={18} />
+              </button>
+            </>
           )}
           <button className="text-[#65676B] hover:bg-[#f0f2f5] p-2 rounded-full transition-colors">  
             <MoreHorizontal size={20} />  
@@ -154,12 +180,39 @@ const PostCard: React.FC<Props> = ({ post }) => {
         </div>
       </div>  
   
-      {/* Post Content */}  
-      {post.content && (  
-        <div className="px-4 pb-3 text-[15px] text-[#050505] whitespace-pre-wrap">  
-          {post.content}  
-        </div>  
-      )}  
+      {/* Post Content (এডিট মোড এবং ভিউ মোড) */}  
+      <div className="px-4 pb-3">
+        {isEditing ? (
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-1.5 rounded-md text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold text-sm transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveEdit}
+                className="px-4 py-1.5 rounded-md text-white bg-blue-600 hover:bg-blue-700 font-semibold text-sm transition shadow-sm"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          post.content && (  
+            <div className="text-[15px] text-[#050505] whitespace-pre-wrap">  
+              {post.content}  
+            </div>  
+          )
+        )}
+      </div>
   
       {/* Post Media */}  
       {imageUrl && (  
@@ -219,7 +272,6 @@ const PostCard: React.FC<Props> = ({ post }) => {
           <MessageSquare size={20} /> Comment  
         </button>  
         
-        {/* Share Button (Phase 10) */}
         <button 
           onClick={handleShare}
           className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px] transition-colors"
