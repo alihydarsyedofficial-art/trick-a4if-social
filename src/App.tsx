@@ -5,12 +5,14 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './config/firebase';
 import { useAppDispatch } from './hooks/redux';
 import { setUser, clearUser, setLoading } from './store/slices/authSlice';
-import type { UserProfile } from './types/auth'; // <-- এখানে type যুক্ত করা হয়েছে
+import type { UserProfile } from './types/auth';
 
 import Login from './pages/auth/Login';
 import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/home/Home';
+// ১. প্রোফাইল পেজটি ইমপোর্ট করা হলো
+import Profile from './pages/Profile'; 
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -49,6 +51,8 @@ const App: React.FC = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
+              {/* ২. প্রোফাইলের জন্য নতুন রাউট যোগ করা হলো */}
+              <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
         </Routes>
