@@ -1,10 +1,8 @@
 import React, { useState } from 'react';  
-// ১. আইকনের লিস্টে Trash2 যুক্ত করা হয়েছে
 import { MoreHorizontal, MessageSquare, Share2, UserCircle, Globe, ThumbsUp, Trash2 } from 'lucide-react';  
 import { formatDistanceToNow } from 'date-fns';  
 import { auth, db } from '../../config/firebase';   
 import CommentSection from './CommentSection';
-// ২. ফায়ারবেস ইমপোর্টে deleteDoc যুক্ত করা হয়েছে
 import { doc, updateDoc, deleteField, deleteDoc } from 'firebase/firestore';  
   
 interface Props {  
@@ -54,15 +52,12 @@ const PostCard: React.FC<Props> = ({ post }) => {
   const fileId = post.imageFileId || post.mediaUrl;  
   const imageUrl = fileId ? `https://trick-a4if-social.onrender.com/image/${fileId}` : null;  
 
-  // ৩. পোস্ট ডিলিট করার ফাংশন
   const handleDeletePost = async () => {
-    // নিশ্চিত হওয়ার জন্য একটি এলার্ট
     const confirmDelete = window.confirm("আপনি কি নিশ্চিত যে এই পোস্টটি ডিলিট করতে চান?");
     if (!confirmDelete) return;
 
     try {
       await deleteDoc(doc(db, 'posts', post.id));
-      // ডিলিট সফল হলে কিছু করার দরকার নেই, onSnapshot নিজে থেকেই ফিড আপডেট করে দেবে
     } catch (error) {
       console.error("Error deleting post:", error);
       alert("পোস্ট ডিলিট করতে সমস্যা হয়েছে!");
@@ -97,6 +92,28 @@ const PostCard: React.FC<Props> = ({ post }) => {
       console.error("Error updating reaction:", error);  
     }  
   };  
+
+  // ৫. শেয়ার করার চমৎকার ফাংশন (Phase 10)
+  const handleShare = async () => {
+    try {
+      const shareData = {
+        title: `Post by ${post.userName || 'Someone'}`,
+        text: post.content ? post.content.substring(0, 60) + '...' : 'Check out this awesome post!',
+        url: window.location.href, // লিংক হিসেবে আপনার ওয়েবসাইটের কারেন্ট ইউআরএল যাবে
+      };
+
+      // যদি ইউজারের ব্রাউজার বা মোবাইল শেয়ার সাপোর্ট করে (যেমন: Chrome, Safari, Android)
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // পিসি বা সাপোর্ট না করলে সরাসরি লিংক কপি করে দেবে
+        await navigator.clipboard.writeText(window.location.href);
+        alert("লিংকটি সফলভাবে কপি হয়েছে! এখন আপনি এটি যেকোনো জায়গায় পেস্ট করে পাঠাতে পারবেন।");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
   
   return (  
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-4 pb-2">  
@@ -121,9 +138,7 @@ const PostCard: React.FC<Props> = ({ post }) => {
           </div>  
         </div>  
 
-        {/* ৪. ডিলিট বাটন লজিক যুক্ত করা হলো */}
         <div className="flex items-center gap-2">
-          {/* শুধুমাত্র পোস্টদাতা এই বাটনটি দেখতে পাবেন */}
           {currentUser && (currentUser.uid === post.userId || currentUser.uid === post.uid) && (
             <button 
               onClick={handleDeletePost}
@@ -204,9 +219,13 @@ const PostCard: React.FC<Props> = ({ post }) => {
           <MessageSquare size={20} /> Comment  
         </button>  
         
-        <button className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px] transition-colors">  
-          <Share2 size={20} /> Share  
-        </button>  
+        {/* Share Button (Phase 10) */}
+        <button 
+          onClick={handleShare}
+          className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px] transition-colors"
+        >
+          <Share2 size={20} /> Share
+        </button>
       </div>  
 
       {showComments && <CommentSection postId={post.id} />}  
