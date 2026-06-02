@@ -11,7 +11,7 @@ import Login from './pages/auth/Login';
 import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/home/Home';
-import Profile from './components/feed/Profile'; // পাথ ঠিক করা হয়েছে
+import Profile from './pages/Profile'; 
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
