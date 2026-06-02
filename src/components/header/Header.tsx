@@ -1,143 +1,212 @@
-import React, { useState } from 'react';
-import { Search, Home, Tv, Store, Users, Menu, MessageCircle, Bell, LogOut, Settings, HelpCircle, AlertCircle, Moon, ChevronRight, RefreshCcw, Grid } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../../config/firebase';
 import { signOut } from 'firebase/auth';
 
 const Header = () => {
     const user = auth.currentUser;
-    const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const defaultAvatar = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png";
+    
+    // Dynamic avatar based on real Firebase user name (No dummy names)
+    const defaultAvatar = user?.displayName 
+        ? `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName)}&background=0866FF&color=fff`
+        : 'https://ui-avatars.com/api/?name=User&background=0866FF&color=fff';
+
+    // States for interactive elements
+    const [activeNav, setActiveNav] = useState('home');
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+    const [profileView, setProfileView] = useState('main'); 
+
+    // Production-ready data states (Empty by default, waiting for Firebase fetch)
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [messages, setMessages] = useState<any[]>([]);
+
+    const headerRef = useRef<HTMLDivElement>(null);
+
+    // Handle clicks outside to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleDropdownToggle = (dropdown: string) => {
+        if (openDropdown === dropdown) {
+            setOpenDropdown(null);
+        } else {
+            setOpenDropdown(dropdown);
+            if (dropdown === 'profile') setProfileView('main');
+        }
+    };
 
     const handleLogout = async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error("Logout failed:", error);
+        try { 
+            await signOut(auth); 
+        } catch (error) { 
+            console.error("Logout Error:", error); 
         }
     };
 
     return (
-        <div className="bg-white h-[56px] w-full fixed top-0 z-50 shadow-sm flex items-center justify-between px-4">
-            {/* Left side */}
-            <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-[#0866ff] hover:bg-[#075ce5] transition-colors rounded-full text-white flex items-center justify-center font-bold text-2xl cursor-pointer">
-                    f
-                </div>
-                <div className="flex items-center bg-[#f0f2f5] rounded-full px-3 py-2 cursor-text">
-                    <Search size={20} className="text-[#65676b]" />
+        <nav ref={headerRef}>
+            {/* Left */}
+            <div className="nav-left">
+                <a href="/" className="logo-box">
+                    <div className="logo-icon"><i className="fa-solid fa-code"></i></div>
+                    <div className="logo-text">TRICK A4IF</div>
+                </a>
+                <div className={`search-box ${searchFocused ? 'focused' : ''}`}>
+                    <i className="fa-solid fa-magnifying-glass"></i>
                     <input 
                         type="text" 
-                        placeholder="Search Facebook" 
-                        className="bg-transparent border-none outline-none ml-2 hidden md:block w-[200px] text-[15px]"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search TRICK A4IF" 
+                        onFocus={() => setSearchFocused(true)} 
+                        onBlur={() => setSearchFocused(false)}
                     />
                 </div>
             </div>
 
-            {/* Middle side (Navigation) */}
-            <div className="hidden md:flex items-center justify-center gap-1 flex-1 max-w-[680px]">
-                <div className="w-full max-w-[110px] h-[48px] flex justify-center items-center cursor-pointer border-b-[3px] border-[#0866ff] text-[#0866ff]">
-                    <Home size={28} />
-                </div>
-                <div className="w-full max-w-[110px] h-[48px] flex justify-center items-center cursor-pointer hover:bg-[#f0f2f5] rounded-lg text-[#65676b] transition-colors">
-                    <Tv size={28} />
-                </div>
-                <div className="w-full max-w-[110px] h-[48px] flex justify-center items-center cursor-pointer hover:bg-[#f0f2f5] rounded-lg text-[#65676b] transition-colors">
-                    <Store size={28} />
-                </div>
-                <div className="w-full max-w-[110px] h-[48px] flex justify-center items-center cursor-pointer hover:bg-[#f0f2f5] rounded-lg text-[#65676b] transition-colors">
-                    <Users size={28} />
-                </div>
+            {/* Center */}
+            <div className="nav-center">
+                <div className={`icon-btn ${activeNav === 'home' ? 'active' : ''}`} onClick={() => setActiveNav('home')}><i className="fa-solid fa-house"></i></div>
+                <div className={`icon-btn ${activeNav === 'video' ? 'active' : ''}`} onClick={() => setActiveNav('video')}><i className="fa-solid fa-tv"></i></div>
+                <div className={`icon-btn ${activeNav === 'store' ? 'active' : ''}`} onClick={() => setActiveNav('store')}><i className="fa-solid fa-store"></i></div>
+                <div className={`icon-btn ${activeNav === 'users' ? 'active' : ''}`} onClick={() => setActiveNav('users')}><i className="fa-solid fa-users"></i></div>
+                <div className={`icon-btn ${activeNav === 'game' ? 'active' : ''}`} onClick={() => setActiveNav('game')}><i className="fa-solid fa-gamepad"></i></div>
             </div>
+            
+            {/* Right */}
+            <div className="nav-right">
+                
+                {/* Menu */}
+                <div className="nav-item-wrapper dropdown-trigger">
+                    <div className={`circle-btn ${openDropdown === 'menu' ? 'active' : ''}`} onClick={() => handleDropdownToggle('menu')}><i className="fa-solid fa-braille"></i></div>
+                    <div className={`dropdown-menu ${openDropdown === 'menu' ? 'show' : ''}`}>
+                        <h2>Menu</h2>
+                        <div className="dropdown-item"><i className="fa-solid fa-calendar-days menu-icon" style={{color: '#f02849'}}></i> <div className="item-text">Events</div></div>
+                        <div className="dropdown-item"><i className="fa-solid fa-user-group menu-icon" style={{color: '#1b74e4'}}></i> <div className="item-text">Friends</div></div>
+                        <div className="dropdown-item"><i className="fa-solid fa-users-rectangle menu-icon" style={{color: '#1b74e4'}}></i> <div className="item-text">Groups</div></div>
+                    </div>
+                </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-2 relative">
-                <div className="w-10 h-10 bg-[#e4e6eb] hover:bg-[#d8dadf] transition-colors rounded-full flex items-center justify-center cursor-pointer text-black">
-                    <Grid size={20} fill="currentColor" />
+                {/* Messenger */}
+                <div className="nav-item-wrapper dropdown-trigger">
+                    <div className={`circle-btn ${openDropdown === 'messenger' ? 'active' : ''}`} onClick={() => handleDropdownToggle('messenger')}><i className="fa-brands fa-facebook-messenger"></i></div>
+                    <div className={`dropdown-menu ${openDropdown === 'messenger' ? 'show' : ''}`}>
+                        <h2>Chats</h2>
+                        <div className="search-box" style={{width: '100%', marginBottom: '16px'}}><i className="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search Messenger" /></div>
+                        
+                        {/* Real Data Rendering (No Dummies) */}
+                        {messages.length > 0 ? (
+                            messages.map((msg, index) => (
+                                <div key={index} className="dropdown-item">
+                                    <img src={msg.avatar} alt="User" />
+                                    <div className="item-text"><strong>{msg.sender}</strong><p>{msg.text}</p></div>
+                                </div>
+                            ))
+                        ) : (
+                            <div style={{textAlign: 'center', padding: '24px 16px', color: 'var(--text-muted)', fontWeight: '500'}}>
+                                No recent messages
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="w-10 h-10 bg-[#e4e6eb] hover:bg-[#d8dadf] transition-colors rounded-full flex items-center justify-center cursor-pointer text-black">
-                    <MessageCircle size={20} fill="currentColor" />
-                </div>
-                <div className="w-10 h-10 bg-[#e4e6eb] hover:bg-[#d8dadf] transition-colors rounded-full flex items-center justify-center cursor-pointer text-black">
-                    <Bell size={20} fill="currentColor" />
+
+                {/* Notifications */}
+                <div className="nav-item-wrapper dropdown-trigger">
+                    <div className={`circle-btn ${openDropdown === 'notification' ? 'active' : ''}`} onClick={() => handleDropdownToggle('notification')}>
+                        <i className="fa-solid fa-bell"></i>
+                        {notifications.length > 0 && <span className="nav-badge" style={{right: '-5px'}}>{notifications.length}</span>}
+                    </div>
+                    <div className={`dropdown-menu ${openDropdown === 'notification' ? 'show' : ''}`}>
+                        <h2>Notifications</h2>
+                        
+                        {/* Real Data Rendering (No Dummies) */}
+                        {notifications.length > 0 ? (
+                            notifications.map((notif, index) => (
+                                <div key={index} className="dropdown-item">
+                                    <img src={notif.image} alt="Notification" />
+                                    <div className="item-text"><strong>{notif.title}</strong><p style={{color: 'var(--primary-blue)'}}>{notif.time}</p></div>
+                                </div>
+                            ))
+                        ) : (
+                            <div style={{textAlign: 'center', padding: '24px 16px', color: 'var(--text-muted)', fontWeight: '500'}}>
+                                You have no new notifications
+                            </div>
+                        )}
+                    </div>
                 </div>
                 
-                {/* Profile Avatar */}
-                <img 
-                    src={user?.photoURL || defaultAvatar} 
-                    alt="Profile" 
-                    className="w-10 h-10 rounded-full cursor-pointer object-cover hover:brightness-95 transition-all border border-gray-200"
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
-                />
-
-                {/* Picture-Perfect Dropdown Menu */}
-                {showProfileMenu && (
-                    <div className="absolute top-[52px] right-0 w-[360px] bg-white rounded-xl shadow-[0_12px_28px_0_rgba(0,0,0,0.2),0_2px_4px_0_rgba(0,0,0,0.1)] p-4 z-50 border border-gray-100">
+                {/* Profile Settings */}
+                <div className="nav-item-wrapper dropdown-trigger">
+                    <img src={user?.photoURL || defaultAvatar} className="profile-pic" onClick={() => handleDropdownToggle('profile')} alt="Profile" />
+                    
+                    <div className={`dropdown-menu ${openDropdown === 'profile' ? 'show' : ''}`} style={{padding: '16px 8px'}}>
                         
-                        {/* Profile Switcher Card */}
-                        <div className="p-1 shadow-[0_2px_12px_rgba(0,0,0,0.1)] rounded-xl mb-4 border border-gray-200">
-                            <div className="flex items-center gap-3 p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <img src={user?.photoURL || defaultAvatar} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
-                                <span className="font-semibold text-[17px] text-[#050505]">{user?.displayName || 'Akhil Khan Adi'}</span>
+                        {/* Main Profile View */}
+                        <div className={`menu-view ${profileView === 'main' ? 'active-view' : ''}`}>
+                            <div className="dropdown-profile-header">
+                                <img src={user?.photoURL || defaultAvatar} alt="Profile" />
+                                <div><h4 style={{margin: 0}}>{user?.displayName || 'User'}</h4></div>
                             </div>
-                            <hr className="mx-2 my-1 border-[#ced0d4]" />
-                            <div className="flex items-center gap-3 p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <RefreshCcw size={20} className="text-[#65676B] ml-2" />
-                                <span className="font-medium text-[15px] text-[#050505]">TRICK A4IF</span>
+                            <hr style={{border: 0, height: '1px', background: 'var(--border-color)', margin: '12px 8px'}} />
+                            
+                            <div className="dropdown-item" onClick={(e) => { e.stopPropagation(); setProfileView('settings'); }}>
+                                <i className="fa-solid fa-gear menu-icon"></i> 
+                                <div className="item-text" style={{fontWeight: 600}}>Settings & privacy</div>
+                                <i className="fa-solid fa-chevron-right arrow-right"></i>
                             </div>
-                            <div className="p-2">
-                                <button className="w-full bg-[#e4e6eb] hover:bg-[#d8dadf] text-[#050505] font-semibold py-1.5 rounded-lg transition-colors text-[15px]">
-                                    See all profiles
-                                </button>
+                            <div className="dropdown-item" onClick={(e) => { e.stopPropagation(); setProfileView('display'); }}>
+                                <i className="fa-solid fa-moon menu-icon"></i> 
+                                <div className="item-text" style={{fontWeight: 600}}>Display & accessibility</div>
+                                <i className="fa-solid fa-chevron-right arrow-right"></i>
+                            </div>
+                            <div className="dropdown-item" onClick={handleLogout}>
+                                <i className="fa-solid fa-door-open menu-icon"></i> 
+                                <div className="item-text" style={{fontWeight: 600}}>Log Out</div>
                             </div>
                         </div>
 
-                        {/* Menu Options */}
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 bg-[#e4e6eb] rounded-full flex items-center justify-center"><Settings size={20} className="text-black"/></div>
-                                    <span className="font-semibold text-[15px] text-[#050505]">Settings & privacy</span>
-                                </div>
-                                <ChevronRight size={24} className="text-[#65676B]" />
+                        {/* Settings View */}
+                        <div className={`menu-view ${profileView === 'settings' ? 'active-view' : ''}`}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', paddingLeft: '8px'}}>
+                                <div className="back-btn" onClick={(e) => { e.stopPropagation(); setProfileView('main'); }}><i className="fa-solid fa-arrow-left"></i></div>
+                                <h2 style={{margin: 0, fontSize: '20px'}}>Settings & privacy</h2>
                             </div>
-                            <div className="flex items-center justify-between p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 bg-[#e4e6eb] rounded-full flex items-center justify-center"><HelpCircle size={20} className="text-black"/></div>
-                                    <span className="font-semibold text-[15px] text-[#050505]">Help & support</span>
-                                </div>
-                                <ChevronRight size={24} className="text-[#65676B]" />
+                            <div className="dropdown-item"><i className="fa-solid fa-gear menu-icon"></i> <div className="item-text" style={{fontWeight: 600}}>Settings</div></div>
+                            <div className="dropdown-item"><i className="fa-solid fa-lock menu-icon"></i> <div className="item-text" style={{fontWeight: 600}}>Privacy Checkup</div></div>
+                        </div>
+
+                        {/* Display View */}
+                        <div className={`menu-view ${profileView === 'display' ? 'active-view' : ''}`}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', paddingLeft: '8px'}}>
+                                <div className="back-btn" onClick={(e) => { e.stopPropagation(); setProfileView('main'); }}><i className="fa-solid fa-arrow-left"></i></div>
+                                <h2 style={{margin: 0, fontSize: '20px'}}>Display & accessibility</h2>
                             </div>
-                            <div className="flex items-center justify-between p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 bg-[#e4e6eb] rounded-full flex items-center justify-center"><AlertCircle size={20} className="text-black"/></div>
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold text-[15px] text-[#050505]">Report a problem</span>
-                                        <span className="text-[12px] text-[#65676B]">CTRL B</span>
+                            <div style={{padding: '8px'}}>
+                                <div style={{display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px'}}>
+                                    <i className="fa-solid fa-moon menu-icon" style={{margin: 0, flexShrink: 0}}></i>
+                                    <div style={{flex: 1}}>
+                                        <strong style={{fontSize: '15px', display: 'block', marginBottom: '4px'}}>Dark Mode</strong>
+                                        <p style={{fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: 1.4}}>Adjust the appearance of TRICK A4IF.</p>
+                                        <label className="radio-option"><span>Off</span><input type="radio" name="darkmode" defaultChecked onChange={() => {}} /></label>
+                                        <label className="radio-option"><span>On</span><input type="radio" name="darkmode" onChange={() => {}} /></label>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 bg-[#e4e6eb] rounded-full flex items-center justify-center"><Moon size={20} className="text-black"/></div>
-                                    <span className="font-semibold text-[15px] text-[#050505]">Display & accessibility</span>
-                                </div>
-                                <ChevronRight size={24} className="text-[#65676B]" />
-                            </div>
-                            
-                            <div onClick={handleLogout} className="flex items-center gap-3 p-2 hover:bg-[#f2f2f2] rounded-lg cursor-pointer transition-colors mt-1">
-                                <div className="w-9 h-9 bg-[#e4e6eb] rounded-full flex items-center justify-center"><LogOut size={20} className="text-black"/></div>
-                                <span className="font-semibold text-[15px] text-[#050505]">Log out</span>
-                            </div>
                         </div>
-                        
-                        {/* Footer links */}
-                        <div className="mt-3 text-[12px] text-[#65676B] px-2 leading-tight">
-                            Privacy · Terms · Advertising · Ad Choices · Cookies · More
-                        </div>
+
                     </div>
-                )}
+                </div>
+
             </div>
-        </div>
+        </nav>
     );
 };
 
