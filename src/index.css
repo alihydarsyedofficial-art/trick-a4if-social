@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  display: block; /* Vite এর ডিফল্ট flexbox ভেঙে দেবে */
+}
+
 @layer base {
   body {
     background-color: #f0f2f5;
@@ -13,13 +21,11 @@
 }
 
 @layer components {
-  /* ফেসবুক স্টাইল কার্ড */
   .fb-card {
-    @apply bg-white rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.2)] border border-facebook-border;
+    @apply bg-white rounded-[8px] shadow-[0_1px_2px_rgba(0,0,0,0.2)] border border-[rgba(0,0,0,0.1)];
   }
   
-  /* ফেসবুক স্টাইল বাটন */
   .fb-btn {
-    @apply flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[8px] font-semibold text-facebook-secondary hover:bg-facebook-hover transition-all duration-200 cursor-pointer;
+    @apply flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[8px] font-semibold text-[#65676B] hover:bg-[#e4e6eb] transition-all duration-200 cursor-pointer;
   }
 }
