@@ -1,21 +1,45 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, ThumbsUp, MessageSquare, Share2, UserCircle, Globe } from 'lucide-react';
+import { MoreHorizontal, MessageSquare, Share2, UserCircle, Globe, ThumbsUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { auth, db } from '../../config/firebase'; 
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+// deleteField নতুন করে যুক্ত করা হয়েছে ফায়ারবেস থেকে রিঅ্যাকশন মুছার জন্য
+import { doc, updateDoc, deleteField } from 'firebase/firestore';
 
 interface Props {
   post: any;
 }
 
-const PostCard: React.FC<Props> = ({ post }) => {
-  // লাইক সিস্টেমের জন্য State
-  const currentUser = auth.currentUser;
-  const initialLikes = post.likes || [];
-  const [isLiked, setIsLiked] = useState(currentUser ? initialLikes.includes(currentUser.uid) : false);
-  const [likesCount, setLikesCount] = useState(initialLikes.length || post.likesCount || 0);
+// ফেসবুকের সব রিঅ্যাকশনের লিস্ট
+const REACTIONS = [
+  { id: 'like', emoji: '👍', name: 'Like', color: 'text-blue-600' },
+  { id: 'love', emoji: '❤️', name: 'Love', color: 'text-red-500' },
+  { id: 'care', emoji: '🫂', name: 'Care', color: 'text-yellow-500' },
+  { id: 'haha', emoji: '😆', name: 'Haha', color: 'text-yellow-500' },
+  { id: 'wow', emoji: '😮', name: 'Wow', color: 'text-yellow-500' },
+  { id: 'sad', emoji: '😢', name: 'Sad', color: 'text-yellow-500' },
+  { id: 'angry', emoji: '😡', name: 'Angry', color: 'text-orange-600' },
+];
 
-  // ফায়ারবেস টাইমস্ট্যাম্পকে সঠিক Date-এ কনভার্ট করা
+const PostCard: React.FC<Props> = ({ post }) => {
+  const currentUser = auth.currentUser;
+  
+  // পুরনো লাইক এবং নতুন রিঅ্যাকশন একসাথে মার্জ করা (যাতে আগের লাইক হারিয়ে না যায়)
+  const initialReactions: Record<string, string> = post.reactions || {};
+  if (post.likes && Array.isArray(post.likes)) {
+    post.likes.forEach((uid: string) => {
+      if (!initialReactions[uid]) initialReactions[uid] = 'like';
+    });
+  }
+
+  // রিঅ্যাকশনের State
+  const [reactionsMap, setReactionsMap] = useState<Record<string, string>>(initialReactions);
+  const totalReactions = Object.keys(reactionsMap).length;
+  
+  // বর্তমান ইউজারের রিঅ্যাকশন বের করা
+  const userReactionId = currentUser ? reactionsMap[currentUser.uid] : null;
+  const activeReaction = REACTIONS.find(r => r.id === userReactionId);
+
+  // ফায়ারবেস টাইমস্ট্যাম্প কনভার্ট
   let formattedDate = 'Just now';
   try {
     if (post.createdAt) {
@@ -28,40 +52,41 @@ const PostCard: React.FC<Props> = ({ post }) => {
     console.error('Date parsing error', e);
   }
 
-  // টেলিগ্রামের file_id কে ব্যাকএন্ড লিংকে রূপান্তর করা
+  // ছবি রেন্ডার লজিক
   const fileId = post.imageFileId || post.mediaUrl;
   const imageUrl = fileId ? `https://trick-a4if-social.onrender.com/image/${fileId}` : null;
 
-  // লাইক দেওয়া বা তুলে নেওয়ার মূল ফাংশন
-  const handleLike = async () => {
+  // রিঅ্যাকশন দেওয়া বা তুলে নেওয়ার ফাংশন
+  const handleReaction = async (type: string | null) => {
     if (!currentUser) {
-      alert("লাইক দেওয়ার জন্য আপনাকে আগে লগইন করতে হবে!");
+      alert("রিঅ্যাক্ট করার জন্য আপনাকে আগে লগইন করতে হবে!");
       return;
     }
 
     const postRef = doc(db, 'posts', post.id);
 
     try {
-      if (isLiked) {
-        // লাইক তুলে নেওয়া (Unlike)
-        setIsLiked(false);
-        setLikesCount((prev: number) => prev - 1);
+      if (type === null) {
+        // রিঅ্যাকশন তুলে নেওয়া (Unlike)
+        setReactionsMap(prev => {
+          const updated = { ...prev };
+          delete updated[currentUser.uid];
+          return updated;
+        });
+        // ডাটাবেস থেকে ডিলিট করা
         await updateDoc(postRef, {
-          likes: arrayRemove(currentUser.uid)
+          [`reactions.${currentUser.uid}`]: deleteField()
         });
       } else {
-        // লাইক দেওয়া (Like)
-        setIsLiked(true);
-        setLikesCount((prev: number) => prev + 1);
+        // নতুন রিঅ্যাকশন দেওয়া
+        setReactionsMap(prev => ({ ...prev, [currentUser.uid]: type }));
+        // ডাটাবেস আপডেট করা
         await updateDoc(postRef, {
-          likes: arrayUnion(currentUser.uid)
+          [`reactions.${currentUser.uid}`]: type
         });
       }
     } catch (error) {
-      console.error("Error toggling like:", error);
-      // কোনো এরর হলে আগের অবস্থায় ফিরে যাওয়া
-      setIsLiked(!isLiked);
-      setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
+      console.error("Error updating reaction:", error);
     }
   };
 
@@ -81,9 +106,7 @@ const PostCard: React.FC<Props> = ({ post }) => {
               {post.userName || 'Unknown User'}
             </h3>
             <div className="flex items-center gap-1 text-[13px] text-[#65676B]">
-              <span className="hover:underline cursor-pointer">
-                {formattedDate}
-              </span>
+              <span className="hover:underline cursor-pointer">{formattedDate}</span>
               <span>·</span>
               <Globe size={12} />
             </div>
@@ -103,36 +126,69 @@ const PostCard: React.FC<Props> = ({ post }) => {
 
       {/* Post Media */}
       {imageUrl && (
-        <div className="w-full bg-[#f0f2f5] flex justify-center">
+        <div className="w-full bg-[#f0f2f5] flex justify-center border-y border-gray-100">
           <img src={imageUrl} alt="Post Media" className="w-full max-h-[600px] object-contain" />
         </div>
       )}
 
-      {/* Post Stats (লাইকের সংখ্যা) */}
+      {/* Post Stats (মোট রিঅ্যাকশনের সংখ্যা) */}
       <div className="px-4 py-2.5 flex justify-between items-center text-[#65676B] text-[15px] border-b border-gray-200 mx-4">
         <div className="flex items-center gap-1 cursor-pointer hover:underline">
-          <div className="bg-blue-600 rounded-full p-1 border-2 border-white">
-            <ThumbsUp size={12} className="text-white" />
+          <div className="bg-blue-600 rounded-full p-1 border-2 border-white flex items-center justify-center">
+            <ThumbsUp size={12} className="text-white fill-current" />
           </div>
-          <span>{likesCount}</span>
+          {totalReactions > 0 && <span className="ml-1">{totalReactions}</span>}
         </div>
         <div className="flex gap-3 cursor-pointer">
           <span className="hover:underline">{post.commentsCount || 0} comments</span>
         </div>
       </div>
 
-      {/* Post Actions (লাইক বাটন) */}
-      <div className="px-4 pt-1 flex justify-between">
-        <button 
-          onClick={handleLike}
-          className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md font-semibold text-[15px] transition-colors ${
-            isLiked ? 'text-blue-600' : 'text-[#65676B] hover:bg-[#f0f2f5]'
-          }`}
-        >
-          <ThumbsUp size={20} className={isLiked ? "fill-current" : ""} /> Like
-        </button>
+      {/* Post Actions */}
+      <div className="px-4 pt-1 flex justify-between relative">
         
+        {/* Magic Reactions Button (Hover Effect) */}
+        <div className="relative group flex-1">
+          {/* Hover Popover Box */}
+          <div className="absolute bottom-10 left-0 lg:left-1/2 lg:-translate-x-1/2 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-300 bg-white rounded-full shadow-lg border border-gray-200 px-3 py-2 flex gap-3 z-10 items-center">
+            {REACTIONS.map((reaction) => (
+              <button
+                key={reaction.id}
+                onClick={() => handleReaction(reaction.id)}
+                className="hover:scale-125 hover:-translate-y-2 transition-transform duration-200 text-2xl"
+                title={reaction.name}
+              >
+                {reaction.emoji}
+              </button>
+            ))}
+          </div>
+
+          {/* Main Action Button */}
+          <button 
+            onClick={() => handleReaction(userReactionId ? null : 'like')}
+            className={`w-full flex items-center justify-center gap-2 py-1.5 rounded-md font-semibold text-[15px] transition-colors hover:bg-[#f0f2f5] ${
+              activeReaction ? activeReaction.color : 'text-[#65676B]'
+            }`}
+          >
+            {activeReaction ? (
+              <span className="text-xl">{activeReaction.emoji}</span>
+            ) : (
+              <ThumbsUp size={20} />
+            )}
+            {activeReaction ? activeReaction.name : 'Like'}
+          </button>
+        </div>
+        
+        {/* Comment & Share */}
         <button className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px] transition-colors">
           <MessageSquare size={20} /> Comment
         </button>
-        <button className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px]
+        <button className="flex-1 flex items-center justify-center gap-2 hover:bg-[#f0f2f5] py-1.5 rounded-md text-[#65676B] font-semibold text-[15px] transition-colors">
+          <Share2 size={20} /> Share
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default PostCard;
