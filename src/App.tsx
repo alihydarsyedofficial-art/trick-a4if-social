@@ -11,7 +11,7 @@ import Login from './pages/auth/Login';
 import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/home/Home';
-import Profile from './pages/Profile'; 
+import Profile from './components/feed/Profile'; // পাথ ঠিক করা হয়েছে
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -23,41 +23,33 @@ const App: React.FC = () => {
         try {
           const userRef = doc(db, 'users', firebaseUser.uid);
           const userSnap = await getDoc(userRef);
-          
           if (userSnap.exists()) {
             dispatch(setUser(userSnap.data() as UserProfile));
           } else {
             dispatch(clearUser());
           }
         } catch (error) {
-          console.error("Error fetching user data", error);
           dispatch(clearUser());
         }
       } else {
         dispatch(clearUser());
       }
     });
-
     return () => unsubscribe();
   }, [dispatch]);
 
   return (
     <Router>
-      <div className="min-h-screen font-sans text-facebook-text bg-facebook-light">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Home />} />
-              {/* নিজের প্রোফাইল দেখার জন্য */}
-              <Route path="/profile" element={<Profile />} />
-              {/* অন্যের প্রোফাইল দেখার ডায়নামিক রাউট */}
-              <Route path="/profile/:id" element={<Profile />} />
-            </Route>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:id" element={<Profile />} />
           </Route>
-        </Routes>
-      </div>
+        </Route>
+      </Routes>
     </Router>
   );
 };
