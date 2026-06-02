@@ -35,10 +35,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // টাইপস্ক্রিপ্ট বিল্ড এরর এড়াতে এটি যোগ করুন
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+        warn(warning);
+      },
+    },
+  },
   server: {
     port: 5173,
     host: true,
-    // নিচের হেডারটি ফায়ারবেস গুগল লগইনের পপআপ এরর ফিক্স করবে
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
     }
