@@ -46,16 +46,13 @@ const Home = () => {
         }
     };
 
-    // Upload to Cloudinary with Failover Protection
+    // Upload to Cloudinary
     const uploadToCloudinary = async (file: File) => {
+        alert("Step 2: Cloudinary তে আপলোড শুরু হচ্ছে...");
         const formData = new FormData();
         formData.append("file", file);
-        
-        // সেফটি ফলব্যাক মেকানিজম (Vercel-এর রিড ডিফেক্ট বাইপাস করার জন্য)
-        const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "trick_social";
-        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dmszpkbs6";
-
-        formData.append("upload_preset", uploadPreset);
+        formData.append("upload_preset", "trick_social"); 
+        const cloudName = "dmszpkbs6";
 
         try {
             const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -66,14 +63,13 @@ const Home = () => {
             const data = await res.json();
             
             if (!res.ok) {
-                alert(`Cloudinary Error: ${data.error?.message || "Upload rejected"}`);
-                throw new Error(data.error?.message || "Cloudinary upload failed");
+                alert(`Cloudinary Error: ${JSON.stringify(data)}`);
+                throw new Error("Cloudinary error");
             }
-
+            alert("Step 3: Cloudinary আপলোড সাকসেস! ছবির লিংক পাওয়া গেছে।");
             return data.secure_url;
         } catch (error: any) {
-            console.error("Cloudinary Process Error:", error);
-            alert(`Network Upload Failed: ${error.message || "Please check your connectivity"}`);
+            alert(`Network Error: ${error.message}`);
             throw error;
         }
     };
@@ -82,34 +78,40 @@ const Home = () => {
     const handlePostSubmit = async () => {
         if (!postText.trim() && !imageFile) return;
         setIsUploading(true);
+        alert("Step 1: Post বাটনে ক্লিক লেগেছে!");
 
         try {
             let imageUrl = "";
 
-            // Upload image to Cloudinary if selected
+            // Upload image
             if (imageFile) {
                 imageUrl = await uploadToCloudinary(imageFile);
             }
 
-            // Save post data to Firebase Firestore
+            alert("Step 4: Firebase Firestore-এ ডেটা সেভ করা শুরু হচ্ছে...");
+
+            // Save to Firebase
             await addDoc(collection(db, 'posts'), {
                 authorName: userName,
                 authorProfilePic: userProfilePic,
                 content: postText,
                 imageUrl: imageUrl, 
-                timestamp: new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, month: 'short', day: 'numeric' }),
+                timestamp: new Date().toLocaleString(),
                 likesCount: 0,
                 commentsCount: 0,
                 createdAt: serverTimestamp()
             });
+
+            alert("Step 5: পোস্ট সফলভাবে পাবলিশ হয়েছে! 🎉");
 
             // Reset Form State
             setPostText("");
             setImageFile(null);
             setImagePreview(null);
             setIsModalOpen(false);
-        } catch (error) {
-            console.error("Firestore Transaction Error: ", error);
+        } catch (error: any) {
+            alert(`Firebase Error: ${error.message}. (আপনার ফায়ারবেস রুলস চেক করুন)`);
+            console.error(error);
         } finally {
             setIsUploading(false);
         }
@@ -119,100 +121,46 @@ const Home = () => {
         <div className="fb-container">
             {/* Left Sidebar */}
             <div className="left-sidebar">
-                <div className="menu-item">
-                    <img src={userProfilePic} alt={userName} />
-                    <span>{userName}</span>
-                </div>
+                <div className="menu-item"><img src={userProfilePic} alt={userName} /><span>{userName}</span></div>
                 <div className="menu-item"><i className="fa-solid fa-user-group" style={{color: '#1b74e4'}}></i><span>Friends</span></div>
-                <div className="menu-item"><i className="fa-solid fa-clock-rotate-left" style={{color: '#2abba7'}}></i><span>Memories</span></div>
-                <div className="menu-item"><i className="fa-solid fa-bookmark" style={{color: '#b05cba'}}></i><span>Saved</span></div>
-                <div className="menu-item"><i className="fa-solid fa-users-rectangle" style={{color: '#1b74e4'}}></i><span>Groups</span></div>
-                <div className="menu-item"><i className="fa-solid fa-video" style={{color: '#1b74e4'}}></i><span>Video</span></div>
-                
-                <div className={`hidden-items ${showMoreLeft ? 'show' : ''}`}>
-                    <div className="menu-item"><i className="fa-solid fa-store" style={{color: '#1b74e4'}}></i><span>Marketplace</span></div>
-                    <div className="menu-item"><i className="fa-solid fa-calendar-days" style={{color: '#f02849'}}></i><span>Events</span></div>
-                </div>
-
-                <div className="menu-item" onClick={() => setShowMoreLeft(!showMoreLeft)}>
-                    <div style={{width: '36px', height: '36px', borderRadius: '50%', background: 'var(--btn-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px'}}>
-                        <i className={`fa-solid ${showMoreLeft ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{fontSize: '16px', margin: 0, color: 'var(--text-dark)'}}></i>
-                    </div>
-                    <span>{showMoreLeft ? 'See less' : 'See more'}</span>
-                </div>
             </div>
 
             {/* Main Content */}
             <div className="main-content">
-                
-                {/* Create Post Card */}
                 <div className="create-post">
                     <div className="create-post-top">
                         <img src={userProfilePic} alt={userName} />
-                        <input type="text" placeholder={`What's on your mind, ${userName?.split(' ')[0]}?`} readOnly onClick={() => setIsModalOpen(true)} />
+                        <input type="text" placeholder={`What's on your mind?`} readOnly onClick={() => setIsModalOpen(true)} />
                     </div>
                     <div className="create-post-bottom">
-                        <div className="action-btn-cp" onClick={() => alert("Live video broadcast component is initializing...")}>
-                            <i className="fa-solid fa-video" style={{color: '#f3425f'}}></i> Live video
-                        </div>
-                        
                         <div className="action-btn-cp" onClick={() => fileInputRef.current?.click()}>
                             <i className="fa-solid fa-images" style={{color: '#45bd62'}}></i> Photo/video
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                hidden 
-                                ref={fileInputRef} 
-                                onChange={handleImageChange} 
-                            />
-                        </div>
-                        
-                        <div className="action-btn-cp" onClick={() => alert("Activity/Feeling panel is updating dynamic vectors...")}>
-                            <i className="fa-regular fa-face-laugh-beam" style={{color: '#f7b928'}}></i> Feeling
+                            <input type="file" accept="image/*" hidden ref={fileInputRef} onChange={handleImageChange} />
                         </div>
                     </div>
                 </div>
 
-                {/* Dynamic Posts Layout */}
-                {posts.length > 0 ? (
-                    posts.map((post, index) => (
-                        <div className="post" key={post.id || index}>
-                            <div className="post-header">
-                                <img src={post.authorProfilePic} alt={post.authorName} />
-                                <div className="post-info">
-                                    <h4>{post.authorName}</h4>
-                                    <p>{post.timestamp} &middot; <i className="fa-solid fa-earth-americas" style={{fontSize: '12px', marginLeft: '4px'}}></i></p>
-                                </div>
-                                <div className="options-container"><div className="options"><i className="fa-solid fa-ellipsis"></i></div></div>
-                            </div>
-                            
-                            <div className="post-content">{post.content}</div>
-                            
-                            {post.imageUrl && (
-                                <div className="post-image">
-                                    <img src={post.imageUrl} alt="Post Attachment" style={{ width: '100%', maxHeight: '700px', objectFit: 'contain', background: '#000' }} />
-                                </div>
-                            )}
-                            
-                            <div className="post-stats">
-                                <div className="reactions"><i className="fa-solid fa-thumbs-up" style={{background: 'var(--primary-blue)'}}></i><span style={{marginLeft: '8px', fontSize: '15px'}}>{post.likesCount || 0}</span></div>
-                                <div>{post.commentsCount || 0} comments</div>
-                            </div>
-                            <div className="post-actions">
-                                <div className="action-btn"><i className="fa-regular fa-thumbs-up"></i> Like</div>
-                                <div className="action-btn"><i className="fa-regular fa-comment"></i> Comment</div>
-                                <div className="action-btn"><i className="fa-solid fa-share"></i> Share</div>
+                {/* Dynamic Posts */}
+                {posts.map((post, index) => (
+                    <div className="post" key={post.id || index}>
+                        <div className="post-header">
+                            <img src={post.authorProfilePic} alt={post.authorName} />
+                            <div className="post-info">
+                                <h4>{post.authorName}</h4>
+                                <p>{post.timestamp}</p>
                             </div>
                         </div>
-                    ))
-                ) : (
-                    <div style={{textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px', fontWeight: '500'}}>
-                        No status logs available on the network grid.
+                        <div className="post-content">{post.content}</div>
+                        {post.imageUrl && (
+                            <div className="post-image">
+                                <img src={post.imageUrl} alt="Post Attachment" style={{ width: '100%', maxHeight: '700px', objectFit: 'contain', background: '#000' }} />
+                            </div>
+                        )}
                     </div>
-                )}
+                ))}
             </div>
 
-            {/* Create Post Modal Component */}
+            {/* Modal */}
             {isModalOpen && (
                 <div className="modal-overlay show" onClick={(e) => { if (e.target === e.currentTarget) { setIsModalOpen(false); setImageFile(null); setImagePreview(null); } }}>
                     <div className="modal-content">
@@ -221,44 +169,14 @@ const Home = () => {
                             <div className="close-modal" onClick={() => { setIsModalOpen(false); setImageFile(null); setImagePreview(null); }}><i className="fa-solid fa-xmark"></i></div>
                         </div>
                         <div className="modal-body">
-                            <div className="modal-user">
-                                <img src={userProfilePic} alt={userName} />
-                                <div><h4>{userName}</h4></div>
-                            </div>
-                            
-                            <textarea 
-                                placeholder={`What's on your mind, ${userName?.split(' ')[0]}?`}
-                                value={postText}
-                                onChange={(e) => setPostText(e.target.value)}
-                            ></textarea>
-
+                            <textarea placeholder="What's on your mind?" value={postText} onChange={(e) => setPostText(e.target.value)}></textarea>
                             {imagePreview && (
                                 <div style={{ position: 'relative', marginBottom: '16px' }}>
-                                    <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px', background: '#000' }} />
-                                    <button 
-                                        type="button"
-                                        onClick={() => { setImageFile(null); setImagePreview(null); }} 
-                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
-                                        ✕
-                                    </button>
+                                    <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain' }} />
+                                    <button onClick={() => { setImageFile(null); setImagePreview(null); }} style={{ position: 'absolute', top: '8px', right: '8px' }}>✕</button>
                                 </div>
                             )}
-
-                            <div className="modal-add-to">
-                                <span style={{fontWeight: 600}}>Add to your post</span>
-                                <div>
-                                    <i className="fa-solid fa-images" style={{color: '#45bd62', cursor: 'pointer', marginLeft: '12px'}} onClick={() => fileInputRef.current?.click()}></i>
-                                    <i className="fa-solid fa-user-tag" style={{color: '#1b74e4', cursor: 'pointer', marginLeft: '12px'}} onClick={() => alert("User tracking vectors are initializing target frames...")}></i>
-                                </div>
-                            </div>
-                            
-                            <button 
-                                className="modal-btn" 
-                                onClick={handlePostSubmit}
-                                disabled={isUploading || (!postText.trim() && !imageFile)}
-                                style={{ opacity: isUploading || (!postText.trim() && !imageFile) ? 0.6 : 1, cursor: isUploading || (!postText.trim() && !imageFile) ? 'not-allowed' : 'pointer' }}
-                            >
+                            <button className="modal-btn" onClick={handlePostSubmit} disabled={isUploading || (!postText.trim() && !imageFile)}>
                                 {isUploading ? "Posting..." : "Post"}
                             </button>
                         </div>
