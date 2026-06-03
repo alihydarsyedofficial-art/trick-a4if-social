@@ -30,6 +30,8 @@ const Home = () => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setPosts(fetchedPosts);
+        }, (error) => {
+            console.error("Firestore Listen Error: ", error);
         });
         return () => unsubscribe();
     }, []);
@@ -44,24 +46,36 @@ const Home = () => {
         }
     };
 
-    // Upload to Cloudinary (100% Free, No CORS issue)
+    // Upload to Cloudinary with Failover Protection
     const uploadToCloudinary = async (file: File) => {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+        
+        // সেফটি ফলব্যাক মেকানিজম (Vercel-এর রিড ডিফেক্ট বাইপাস করার জন্য)
+        const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "trick_social";
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dmszpkbs6";
 
-        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-            method: "POST",
-            body: formData,
-        });
+        formData.append("upload_preset", uploadPreset);
 
-        if (!res.ok) {
-            throw new Error("Cloudinary upload failed");
+        try {
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            
+            if (!res.ok) {
+                alert(`Cloudinary Error: ${data.error?.message || "Upload rejected"}`);
+                throw new Error(data.error?.message || "Cloudinary upload failed");
+            }
+
+            return data.secure_url;
+        } catch (error: any) {
+            console.error("Cloudinary Process Error:", error);
+            alert(`Network Upload Failed: ${error.message || "Please check your connectivity"}`);
+            throw error;
         }
-
-        const data = await res.json();
-        return data.secure_url;
     };
 
     // Handle Post Submit
@@ -83,20 +97,19 @@ const Home = () => {
                 authorProfilePic: userProfilePic,
                 content: postText,
                 imageUrl: imageUrl, 
-                timestamp: new Date().toLocaleString(),
+                timestamp: new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true, month: 'short', day: 'numeric' }),
                 likesCount: 0,
                 commentsCount: 0,
                 createdAt: serverTimestamp()
             });
 
-            // Reset Form
+            // Reset Form State
             setPostText("");
             setImageFile(null);
             setImagePreview(null);
             setIsModalOpen(false);
         } catch (error) {
-            console.error("Error adding post: ", error);
-            alert("Error posting! Please try again.");
+            console.error("Firestore Transaction Error: ", error);
         } finally {
             setIsUploading(false);
         }
@@ -106,9 +119,27 @@ const Home = () => {
         <div className="fb-container">
             {/* Left Sidebar */}
             <div className="left-sidebar">
-                <div className="menu-item"><img src={userProfilePic} alt={userName} /><span>{userName}</span></div>
+                <div className="menu-item">
+                    <img src={userProfilePic} alt={userName} />
+                    <span>{userName}</span>
+                </div>
                 <div className="menu-item"><i className="fa-solid fa-user-group" style={{color: '#1b74e4'}}></i><span>Friends</span></div>
                 <div className="menu-item"><i className="fa-solid fa-clock-rotate-left" style={{color: '#2abba7'}}></i><span>Memories</span></div>
+                <div className="menu-item"><i className="fa-solid fa-bookmark" style={{color: '#b05cba'}}></i><span>Saved</span></div>
+                <div className="menu-item"><i className="fa-solid fa-users-rectangle" style={{color: '#1b74e4'}}></i><span>Groups</span></div>
+                <div className="menu-item"><i className="fa-solid fa-video" style={{color: '#1b74e4'}}></i><span>Video</span></div>
+                
+                <div className={`hidden-items ${showMoreLeft ? 'show' : ''}`}>
+                    <div className="menu-item"><i className="fa-solid fa-store" style={{color: '#1b74e4'}}></i><span>Marketplace</span></div>
+                    <div className="menu-item"><i className="fa-solid fa-calendar-days" style={{color: '#f02849'}}></i><span>Events</span></div>
+                </div>
+
+                <div className="menu-item" onClick={() => setShowMoreLeft(!showMoreLeft)}>
+                    <div style={{width: '36px', height: '36px', borderRadius: '50%', background: 'var(--btn-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '12px'}}>
+                        <i className={`fa-solid ${showMoreLeft ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{fontSize: '16px', margin: 0, color: 'var(--text-dark)'}}></i>
+                    </div>
+                    <span>{showMoreLeft ? 'See less' : 'See more'}</span>
+                </div>
             </div>
 
             {/* Main Content */}
@@ -121,7 +152,7 @@ const Home = () => {
                         <input type="text" placeholder={`What's on your mind, ${userName?.split(' ')[0]}?`} readOnly onClick={() => setIsModalOpen(true)} />
                     </div>
                     <div className="create-post-bottom">
-                        <div className="action-btn-cp" onClick={() => alert("Live video feature is coming soon!")}>
+                        <div className="action-btn-cp" onClick={() => alert("Live video broadcast component is initializing...")}>
                             <i className="fa-solid fa-video" style={{color: '#f3425f'}}></i> Live video
                         </div>
                         
@@ -136,13 +167,13 @@ const Home = () => {
                             />
                         </div>
                         
-                        <div className="action-btn-cp" onClick={() => alert("Feeling/Activity feature is coming soon!")}>
+                        <div className="action-btn-cp" onClick={() => alert("Activity/Feeling panel is updating dynamic vectors...")}>
                             <i className="fa-regular fa-face-laugh-beam" style={{color: '#f7b928'}}></i> Feeling
                         </div>
                     </div>
                 </div>
 
-                {/* Dynamic Posts */}
+                {/* Dynamic Posts Layout */}
                 {posts.length > 0 ? (
                     posts.map((post, index) => (
                         <div className="post" key={post.id || index}>
@@ -176,14 +207,14 @@ const Home = () => {
                     ))
                 ) : (
                     <div style={{textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px', fontWeight: '500'}}>
-                        No posts to show right now.
+                        No status logs available on the network grid.
                     </div>
                 )}
             </div>
 
-            {/* Create Post Modal */}
+            {/* Create Post Modal Component */}
             {isModalOpen && (
-                <div className="modal-overlay show" onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}>
+                <div className="modal-overlay show" onClick={(e) => { if (e.target === e.currentTarget) { setIsModalOpen(false); setImageFile(null); setImagePreview(null); } }}>
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>Create post</h3>
@@ -205,8 +236,9 @@ const Home = () => {
                                 <div style={{ position: 'relative', marginBottom: '16px' }}>
                                     <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px', background: '#000' }} />
                                     <button 
+                                        type="button"
                                         onClick={() => { setImageFile(null); setImagePreview(null); }} 
-                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
+                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', fontWeight: 'bold' }}
                                     >
                                         ✕
                                     </button>
@@ -217,7 +249,7 @@ const Home = () => {
                                 <span style={{fontWeight: 600}}>Add to your post</span>
                                 <div>
                                     <i className="fa-solid fa-images" style={{color: '#45bd62', cursor: 'pointer', marginLeft: '12px'}} onClick={() => fileInputRef.current?.click()}></i>
-                                    <i className="fa-solid fa-user-tag" style={{color: '#1b74e4', cursor: 'pointer', marginLeft: '12px'}} onClick={() => alert("Tag friends coming soon!")}></i>
+                                    <i className="fa-solid fa-user-tag" style={{color: '#1b74e4', cursor: 'pointer', marginLeft: '12px'}} onClick={() => alert("User tracking vectors are initializing target frames...")}></i>
                                 </div>
                             </div>
                             
