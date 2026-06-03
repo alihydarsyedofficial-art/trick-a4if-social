@@ -48,7 +48,6 @@ const Home = () => {
 
     // Upload to Cloudinary
     const uploadToCloudinary = async (file: File) => {
-        alert("Step 2: Cloudinary তে আপলোড শুরু হচ্ছে...");
         const formData = new FormData();
         formData.append("file", file);
         formData.append("upload_preset", "trick_social"); 
@@ -63,13 +62,12 @@ const Home = () => {
             const data = await res.json();
             
             if (!res.ok) {
-                alert(`Cloudinary Error: ${JSON.stringify(data)}`);
+                console.error(`Cloudinary Error: ${JSON.stringify(data)}`);
                 throw new Error("Cloudinary error");
             }
-            alert("Step 3: Cloudinary আপলোড সাকসেস! ছবির লিংক পাওয়া গেছে।");
             return data.secure_url;
         } catch (error: any) {
-            alert(`Network Error: ${error.message}`);
+            console.error(`Network Error: ${error.message}`);
             throw error;
         }
     };
@@ -78,7 +76,6 @@ const Home = () => {
     const handlePostSubmit = async () => {
         if (!postText.trim() && !imageFile) return;
         setIsUploading(true);
-        alert("Step 1: Post বাটনে ক্লিক লেগেছে!");
 
         try {
             let imageUrl = "";
@@ -87,8 +84,6 @@ const Home = () => {
             if (imageFile) {
                 imageUrl = await uploadToCloudinary(imageFile);
             }
-
-            alert("Step 4: Firebase Firestore-এ ডেটা সেভ করা শুরু হচ্ছে...");
 
             // Save to Firebase
             await addDoc(collection(db, 'posts'), {
@@ -102,16 +97,13 @@ const Home = () => {
                 createdAt: serverTimestamp()
             });
 
-            alert("Step 5: পোস্ট সফলভাবে পাবলিশ হয়েছে! 🎉");
-
             // Reset Form State
             setPostText("");
             setImageFile(null);
             setImagePreview(null);
             setIsModalOpen(false);
         } catch (error: any) {
-            alert(`Firebase Error: ${error.message}. (আপনার ফায়ারবেস রুলস চেক করুন)`);
-            console.error(error);
+            console.error(`Firebase Error: ${error.message}. (আপনার ফায়ারবেস রুলস চেক করুন)`);
         } finally {
             setIsUploading(false);
         }
